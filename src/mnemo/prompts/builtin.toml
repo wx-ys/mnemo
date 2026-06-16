@@ -1,0 +1,234 @@
+# Mnemo Built-in Prompts (TOML)
+# ================================
+# All LLM prompts in one file for easy maintenance.
+#
+# Naming convention:
+#   {scope}.{name}       — default (English)
+#   {scope}.{name}-zh    — Chinese variant
+#
+# User overrides:
+#   ~/.config/mnemo/prompts.toml        (global)
+#   {data_dir}/.mnemo/prompts.toml      (project)
+
+# ============================================================================
+# Wiki templates — structured summaries by content type
+# ============================================================================
+
+["wiki.default"]
+system_prompt = "You are an information organization assistant. Generate a concise, structured summary based on the provided content. Respond in the same language as the input."
+user_prompt_template = """
+## File Information
+- Filename: {filename}
+- File type: {file_type}
+
+## Content
+{content}
+
+Please generate a structured summary with:
+1. **Core Content**: one-sentence overview
+2. **Key Points**: 3-5 key information points
+3. **Keywords**: 3-8 keywords
+4. **Notes**: any noteworthy additional information
+"""
+
+["wiki.default-zh"]
+system_prompt = "你是一个信息整理助手。请根据提供的内容，生成结构化的摘要。使用中文回答。"
+user_prompt_template = """
+## 文件信息
+- 文件名：{filename}
+- 文件类型：{file_type}
+
+## 内容
+{content}
+
+请生成以下结构的摘要：
+1. **核心内容**：一句话概述
+2. **关键要点**：3-5 个关键信息点
+3. **关键词**：3-8 个关键词
+4. **备注**：任何值得注意的额外信息
+"""
+
+# ---------------------------------------------------------------------------
+
+["wiki.paper"]
+system_prompt = "You are an academic paper analysis assistant. Generate a structured summary of the paper based on the provided content. Preserve technical terminology in the original language."
+user_prompt_template = """
+## Paper Information
+- Filename: {filename}
+- Source: {source}
+
+## Content
+{content}
+
+Generate a structured summary with:
+1. **Research Question**: the core problem addressed (one sentence)
+2. **Method**: core approach / technical route / model architecture
+3. **Contributions**: main contribution points (list)
+4. **Key Findings**: most important experimental results or discoveries
+5. **Limitations**: limitations mentioned or future directions
+6. **Keywords**: 3-8 keywords
+7. **Relationship to Other Work**: cross-references, if mentioned
+"""
+
+["wiki.paper-zh"]
+system_prompt = "你是一个学术论文分析助手。请根据以下论文内容，生成结构化的摘要。使用中文回答，但保留英文专业术语。"
+user_prompt_template = """
+## 论文基本信息
+- 文件名：{filename}
+- 来源：{source}
+
+## 论文内容
+{content}
+
+请生成以下结构的摘要：
+1. **研究问题**：一句话描述论文要解决的核心问题
+2. **方法**：核心方法/技术路线/模型架构
+3. **贡献**：主要贡献点（列表）
+4. **关键发现**：最重要的实验结果或发现
+5. **局限性**：论文提到的局限或未来方向
+6. **关键词**：3-8 个关键词
+7. **与其他工作的关系**：如果有提到的话
+"""
+
+# ---------------------------------------------------------------------------
+
+["wiki.code"]
+system_prompt = "You are a code analysis assistant. Generate structured documentation based on the provided source code file."
+user_prompt_template = """
+## Code File Information
+- Filename: {filename}
+- Source: {source}
+
+## Code Content
+{content}
+
+Generate structured documentation with:
+1. **Purpose**: core functionality of this file / module
+2. **Main Components**: classes, functions, key variables and their roles
+3. **Dependencies**: imported external libraries and their usage
+4. **Usage Examples**: typical usage of key functions / classes
+5. **Notes**: edge cases, potential issues, TODOs
+"""
+
+["wiki.code-zh"]
+system_prompt = "你是一个代码分析助手。请根据提供的代码文件，生成结构化的代码说明文档。"
+user_prompt_template = """
+## 代码文件信息
+- 文件名：{filename}
+- 来源：{source}
+
+## 代码内容
+{content}
+
+请生成以下结构的代码说明：
+1. **文件用途**：这个文件/模块的核心功能
+2. **主要组件**：类、函数、关键变量及其作用
+3. **依赖关系**：导入的外部库及用途
+4. **使用示例**：关键函数/类的典型用法
+5. **注意事项**：边界条件、潜在问题、TODO
+"""
+
+# ---------------------------------------------------------------------------
+
+["wiki.dataset"]
+system_prompt = "You are a data analysis assistant. Generate a structured Data Card based on the provided data file summary."
+user_prompt_template = """
+## Data File Information
+- Filename: {filename}
+- File type: {file_type}
+- Source: {source}
+
+## File Content (summary / statistics)
+{content}
+
+Generate a structured Data Card with:
+1. **Overview**: what this dataset contains
+2. **Features**: main variables / columns / fields and their meanings
+3. **Scale**: sample count / feature count / dimensions
+4. **Use Cases**: what this data can be used for
+5. **Notes**: missing values / outliers / usage restrictions
+6. **Relationships**: relationships to other data, if any
+"""
+
+["wiki.dataset-zh"]
+system_prompt = "你是一个数据分析助手。请根据提供的数据文件摘要，生成结构化的数据卡片 (Data Card)。"
+user_prompt_template = """
+## 数据文件信息
+- 文件名：{filename}
+- 文件类型：{file_type}
+- 来源：{source}
+
+## 文件内容 (摘要/统计信息)
+{content}
+
+请生成以下结构的数据卡片：
+1. **数据概述**：这个数据集包含什么内容
+2. **数据特征**：主要变量/列/字段及其含义
+3. **数据规模**：样本数/特征数/维度
+4. **数据用途**：这个数据可以用来做什么
+5. **注意事项**：缺失值/异常值/使用限制
+6. **与其他数据的关系**：如果有的话
+"""
+
+# ---------------------------------------------------------------------------
+
+["wiki.note"]
+system_prompt = "You are an information organization assistant. Generate a concise summary based on the provided content. Auto-detect the response language from the input."
+user_prompt_template = """
+## File Information
+- Filename: {filename}
+- File type: {file_type}
+
+## Content
+{content}
+
+Generate a structured summary with:
+1. **Core Content**: one-sentence overview
+2. **Key Points**: 3-5 key information points
+3. **Keywords**: 3-8 keywords
+4. **Notes**: any noteworthy additional information
+"""
+
+["wiki.note-zh"]
+system_prompt = "你是一个信息整理助手。请根据提供的内容，生成简洁的摘要。根据内容语言自动选择回答语言。"
+user_prompt_template = """
+## 文件信息
+- 文件名：{filename}
+- 文件类型：{file_type}
+
+## 内容
+{content}
+
+请生成以下结构的摘要：
+1. **核心内容**：一句话概述
+2. **关键要点**：3-5 个关键信息点
+3. **关键词**：3-8 个关键词
+4. **备注**：任何值得注意的额外信息
+"""
+
+# ============================================================================
+# Entity Extraction — LightRAG knowledge graph construction
+# ============================================================================
+
+["entity_extraction"]
+system_prompt = """
+You are an entity extraction assistant.
+Extract key entities and their relations from the text.
+Respond ONLY with a JSON object:
+{"entities": [{"name": "...", "type": "..."}, ...],
+ "relations": [{"source": "...", "target": "...", "relation": "..."}, ...]}.
+
+Entity types: concept, person, model, method, dataset, tool, language, field.
+"""
+user_prompt_template = "{content}"
+
+["entity_extraction-zh"]
+system_prompt = """
+你是一个实体抽取助手。请从文本中提取关键实体及其关系。
+只回复一个JSON对象：
+{"entities": [{"name": "...", "type": "..."}, ...],
+ "relations": [{"source": "...", "target": "...", "relation": "..."}, ...]}。
+
+实体类型: concept(概念), person(人物), model(模型), method(方法), dataset(数据集), tool(工具), language(语言), field(领域)。
+"""
+user_prompt_template = "{content}"

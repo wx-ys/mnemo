@@ -1,0 +1,65 @@
+# Builtin Ask Workflow — RAG question answering with citations
+#
+# Analyze → search (nested) → assemble → generate → verify
+
+[workflow]
+name = "ask"
+version = "2.0"
+description = "RAG QA: analyze → search → context → generate → citations"
+
+# ── Analyze question ─────────────────────────────────────────────────
+
+[workflow.steps.analyze_question]
+type = "agent"
+agent_name = "default"
+system_prompt = "prompts://analyze_question"
+output_type = "str"
+depends_on = []
+output_key = "question_analysis"
+progress_label = "Analyzing question"
+timeout_seconds = 20
+retry = 1
+
+# ── Search (nested Search workflow) ──────────────────────────────────
+
+[workflow.steps.search_kb]
+type = "pipeline"
+workflow_name = "search"
+depends_on = ["analyze_question"]
+progress_label = "Searching knowledge base"
+
+# ── Assemble context ─────────────────────────────────────────────────
+
+[workflow.steps.assemble_context]
+type = "function"
+func_name = "assemble_rag_context"
+depends_on = ["search_kb"]
+output_key = "context"
+progress_label = "Assembling context"
+
+# ── Generate answer (LLM streaming, with tools) ──────────────────────
+
+[workflow.steps.generate_answer]
+type = "agent"
+agent_name = "default"
+system_prompt = "prompts://ask_answer"
+tools = ["search_kb", "get_file_context"]
+output_type = "str"
+depends_on = ["assemble_context"]
+output_key = "answer"
+progress_label = "Generating answer"
+timeout_seconds = 60
+retry = 2
+stream = true
+
+# ── Verify citations (optional) ──────────────────────────────────────
+
+[workflow.steps.verify_citations]
+type = "agent"
+agent_name = "default"
+system_prompt = "prompts://verify_citations"
+output_type = "str"
+depends_on = ["generate_answer"]
+condition = "ctx.data.config.verify_citations"
+progress_label = "Verifying citations"
+timeout_seconds = 20

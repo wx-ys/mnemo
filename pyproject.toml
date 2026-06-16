@@ -1,0 +1,141 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mnemo"
+version = "0.1.0"
+description = "Mnemo — file-based personal knowledge base, external memory hub for AI agents"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Mnemo Contributors"}
+]
+keywords = ["knowledge-base", "rag", "vector-search", "ai-agent", "personal-knowledge"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # --- Core (always needed) ---
+    "tomli-w>=1.0",
+    "pyyaml>=6.0",       # for .md front matter (not config)
+    "click>=8.0",
+    "rich>=13.0",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+    # --- Monitoring ---
+    "watchdog>=4.0",
+    "rich-click>=1.9.8",
+    "langchain-text-splitters>=1.1.2",
+    "langchain-experimental>=0.4.2",
+    # --- LLM & Agent ---
+    "pydantic-ai>=0.0.30",        # structured LLM output + agent capabilities
+    # --- REST API ---
+    "fastapi>=0.115",             # REST API framework
+    "uvicorn[standard]>=0.30",    # ASGI server
+    # --- MCP ---
+    "mcp>=1.0",                   # MCP Python SDK (Model Context Protocol)
+    # --- Search quality ---
+    "rerankers>=0.1",             # search result reranking (Cohere/Jina/cross-encoder)
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.3",
+    "mypy>=1.8",
+]
+# Heavy / platform-sensitive deps: install with `uv sync --extra <name>`
+# or `uv sync --all-extras` for full development.
+search = [
+    "rank-bm25>=0.2",
+    "jieba>=0.42",
+]
+vector = [
+    "lancedb>=0.15",
+]
+embedding = [
+    "openai>=1.0",   # OpenAI-compatible /embeddings endpoint
+]
+parsers = [
+    "python-magic>=0.4.27",
+    "markitdown>=0.0.1",
+    "beautifulsoup4>=4.12",
+    "Pillow>=10.0",
+    "pandas>=2.0",
+    "numpy>=1.24",
+]
+llm = [
+    "openai>=1.0",
+    "httpx>=0.25",
+]
+all = [
+    "mnemo[search,vector,embedding,parsers,llm,dev]",
+]
+
+[project.scripts]
+mnemo = "mnemo.cli.main:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.3",
+    "mypy>=1.8",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+pretty = true
+show_error_codes = true
+# PluginHub.get() accepts abstract interface types (e.g. IIndexer) as
+# type[T] parameters but instantiates the stored CONCRETE implementation,
+# not the abstract type.  Safe pattern, false positive from mypy.
+disable_error_code = ["type-abstract"]
+
+# Dependencies without type stubs
+[[tool.mypy.overrides]]
+module = [
+    "click.*",
+    "lancedb.*",
+    "rank_bm25.*",
+    "jieba.*",
+    "langchain_text_splitters.*",
+    "langchain_experimental.*",
+    "markitdown.*",
+    "rerankers.*",
+    "rich.*",
+    "rich_click.*",
+    "watchdog.*",
+    "PIL.*",
+    "pydantic_ai.*",
+    "bs4.*",
+    "magic.*",
+    "tomli_w.*",
+    "yaml.*",
+    "dotenv.*",
+]
+ignore_missing_imports = true

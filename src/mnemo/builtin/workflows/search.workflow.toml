@@ -1,0 +1,90 @@
+# Builtin Search Workflow — intelligent multi-strategy retrieval
+#
+# LLM-enhanced query processing → parallel search → fusion → rerank
+
+[workflow]
+name = "search"
+version = "2.0"
+description = "Intelligent retrieval: rewrite → judge → search → fuse → rerank"
+
+# ── LLM Query Rewrite (optional) ─────────────────────────────────────
+
+[workflow.steps.rewrite_query]
+type = "agent"
+agent_name = "default"
+system_prompt = "prompts://rewrite_query"
+output_type = "str"
+depends_on = []
+condition = "ctx.data.config.enable_llm_rewrite"
+output_key = "rewritten_queries"
+progress_label = "Rewriting query"
+timeout_seconds = 15
+retry = 1
+
+# ── LLM Query Judge (optional) ───────────────────────────────────────
+
+[workflow.steps.judge_query]
+type = "agent"
+agent_name = "default"
+system_prompt = "prompts://judge_query_type"
+output_type = "str"
+depends_on = []
+condition = "ctx.data.config.enable_query_judge"
+output_key = "query_judgment"
+progress_label = "Analyzing query type"
+timeout_seconds = 15
+retry = 1
+
+# ── Plan search strategy ─────────────────────────────────────────────
+
+[workflow.steps.plan_search]
+type = "function"
+func_name = "plan_search_strategy"
+depends_on = ["rewrite_query", "judge_query"]
+progress_label = "Planning search"
+
+# ── Parallel search channels ─────────────────────────────────────────
+
+[workflow.steps.vector_search]
+type = "function"
+func_name = "run_vector_search"
+depends_on = ["plan_search"]
+progress_label = "Vector search"
+
+[workflow.steps.keyword_search]
+type = "function"
+func_name = "run_keyword_search"
+depends_on = ["plan_search"]
+progress_label = "Keyword search"
+
+[workflow.steps.graph_search]
+type = "function"
+func_name = "run_graph_search"
+depends_on = ["plan_search"]
+condition = "ctx.data.config.search_graph_enabled"
+progress_label = "Graph search"
+
+# ── Fuse results (RRF) ───────────────────────────────────────────────
+
+[workflow.steps.fuse_results]
+type = "function"
+func_name = "fuse_search_results"
+depends_on = ["vector_search", "keyword_search", "graph_search"]
+progress_label = "Fusing results"
+
+# ── Rerank ───────────────────────────────────────────────────────────
+
+[workflow.steps.rerank]
+type = "function"
+func_name = "rerank_results"
+depends_on = ["fuse_results"]
+condition = "ctx.data.config.rerank_method != 'none'"
+progress_label = "Reranking"
+
+# ── Filter & Format ──────────────────────────────────────────────────
+
+[workflow.steps.filter_format]
+type = "function"
+func_name = "filter_and_format_results"
+depends_on = ["rerank"]
+progress_label = "Formatting results"

@@ -1,0 +1,119 @@
+# Builtin Add Workflow — file ingestion pipeline
+#
+# Steps execute in DAG order based on `depends_on`.
+# Independent branches run in parallel via asyncio.gather.
+#
+# Each step can be:
+#   type = "function"  → deterministic Python function (StepRegistry)
+#   type = "agent"     → pydantic-ai LLM Agent with optional tools
+#   type = "pipeline"  → nested sub-workflow
+
+[workflow]
+name = "add"
+version = "2.0"
+description = "File ingestion: validate → copy → judge → parse → chunk → embed → wiki → index"
+
+# ── Step 1: Validate ────────────────────────────────────────────────
+
+[workflow.steps.validate]
+type = "function"
+func_name = "validate_file"
+depends_on = []
+output_key = "file_info"
+retry = 1
+progress_label = "Validating file"
+
+# ── Step 2: Copy ────────────────────────────────────────────────────
+
+[workflow.steps.copy]
+type = "function"
+func_name = "copy_file"
+depends_on = ["validate"]
+condition = "ctx.data.file_info.is_new"
+progress_label = "Copying file"
+
+# ── Step 3: LLM Judge (optional, config-driven) ─────────────────────
+
+[workflow.steps.judge]
+type = "agent"
+agent_name = "default"
+system_prompt = "prompts://judge_file"
+tools = []
+output_type = "str"
+depends_on = ["copy"]
+condition = "ctx.data.config.auto_wiki"
+output_key = "judgment"
+progress_label = "Analyzing file with LLM"
+timeout_seconds = 30
+retry = 2
+
+# ── Step 4: Parse to Markdown ────────────────────────────────────────
+
+[workflow.steps.parse_to_md]
+type = "function"
+func_name = "parse_file_to_markdown"
+depends_on = ["judge", "copy"]
+condition = "ctx.data.config.auto_md"
+progress_label = "Converting to Markdown"
+
+# ── Step 5: Chunk Markdown ───────────────────────────────────────────
+
+[workflow.steps.chunk_md]
+type = "function"
+func_name = "chunk_markdown"
+depends_on = ["parse_to_md"]
+condition = "ctx.data.config.auto_embed"
+progress_label = "Chunking content"
+
+# ── Step 6: Embed Markdown chunks ────────────────────────────────────
+
+[workflow.steps.embed_md]
+type = "function"
+func_name = "embed_chunks"
+depends_on = ["chunk_md"]
+progress_label = "Embedding chunks"
+
+# ── Step 7: Generate Wiki (LLM, streaming) ───────────────────────────
+
+[workflow.steps.generate_wiki]
+type = "agent"
+agent_name = "default"
+system_prompt = "prompts://wiki.note"
+tools = ["search_kb"]
+output_type = "str"
+depends_on = ["parse_to_md", "judge"]
+condition = "ctx.data.config.auto_wiki"
+output_key = "wiki"
+progress_label = "Generating LLM wiki"
+timeout_seconds = 60
+retry = 2
+stream = true
+
+# ── Step 8: Extract Entities (LLM structured output) ─────────────────
+
+[workflow.steps.extract_entities]
+type = "agent"
+agent_name = "default"
+system_prompt = "prompts://entity_extraction"
+output_type = "str"
+depends_on = ["parse_to_md"]
+condition = "ctx.data.config.auto_entity_extract"
+progress_label = "Extracting entities"
+retry = 1
+
+# ── Step 9: Embed Wiki + Entities ────────────────────────────────────
+
+[workflow.steps.embed_wiki]
+type = "function"
+func_name = "embed_wiki_content"
+depends_on = ["generate_wiki", "extract_entities"]
+condition = "ctx.data.config.auto_embed"
+progress_label = "Embedding wiki and entities"
+
+# ── Step 10: Write Index ─────────────────────────────────────────────
+
+[workflow.steps.index]
+type = "function"
+func_name = "write_index"
+depends_on = ["embed_md", "embed_wiki"]
+progress_label = "Writing index"

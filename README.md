@@ -1,10 +1,12 @@
-# Mnemo (忆枢)
+# Mnemo
 
 > AI-agent-friendly personal knowledge base — External Memory Hub
 > 面向 AI Agent 的个人知识库 — 外置记忆中枢
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> ⚠️ **Under active development.** APIs and features may change.
 
 Mnemo is a file-based personal knowledge base. Ingest files → auto-classify → Markdown → LLM wiki → embed → hybrid search (vector ANN + BM25 keyword + graph RRF fusion).
 

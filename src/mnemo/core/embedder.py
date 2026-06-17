@@ -16,12 +16,38 @@ provides a single entry point for the entire library::
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from pydantic_ai.embeddings import Embedder
 from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
 from pydantic_ai.providers.openai import OpenAIProvider
+
+from mnemo.core.interfaces.param_spec import Param
+from mnemo.core.param_config import resolve_api_key
+
+# ---------------------------------------------------------------------------
+# Embedder config schema — single source of truth for [embedder] section
+# ---------------------------------------------------------------------------
+
+EMBEDDER_CONFIG_SCHEMA: dict[str, Param] = {
+    "model": Param(
+        type="str", default="text-embedding-v4",
+        desc="Embedding model name",
+    ),
+    "base_url": Param(
+        type="str",
+        default="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        desc="API base URL",
+    ),
+    "api_key": Param(
+        type="str", default="EMBED_API_KEY", env_var="EMBED_API_KEY",
+        desc="API key — env var name or literal key (e.g. EMBED_API_KEY or sk-xxx)",
+    ),
+    "batch_size": Param(
+        type="int", default=10,
+        desc="Batch size for embedding texts",
+    ),
+}
 
 # ---------------------------------------------------------------------------
 # Module-level state
@@ -57,10 +83,11 @@ def init_embedder(config: dict[str, Any]) -> Embedder[Any]:
     if not isinstance(emb_cfg, dict):
         emb_cfg = {}
 
-    api_key = (
-        emb_cfg.get("api_key", "")
-        or os.environ.get("DASHSCOPE_API_KEY", "")
-        or os.environ.get("EMBED_API_KEY", "")
+    # Resolve api_key via the unified helper: TOML value is env var name
+    # (e.g. "EMBED_API_KEY") or a literal key; falls back to env var if empty
+    api_key = resolve_api_key(
+        emb_cfg.get("api_key", ""),
+        EMBEDDER_CONFIG_SCHEMA.get("api_key"),
     )
     base_url = emb_cfg.get("base_url", "") or None
     _model_name = str(emb_cfg.get("model", "text-embedding-v4"))

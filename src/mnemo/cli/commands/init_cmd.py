@@ -207,10 +207,10 @@ def run(ctx: click.Context, directory: str | None, force: bool):
         console.print(f"  {_icon('config')} [dim].env template already exists[/dim]")
     else:
         try:
-            from importlib.resources import files
-            template = files("mnemo.prompts").joinpath("env.template").read_text(encoding="utf-8")
+            from mnemo.core.param_config import generate_env_template
+            env_content = generate_env_template()
             env_existed = env_path.exists()
-            env_path.write_text(template, encoding="utf-8")
+            env_path.write_text(env_content, encoding="utf-8")
             results["env"] = {
                 "path": str(env_path),
                 "status": "overwritten" if env_existed and force else "created",

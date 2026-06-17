@@ -19,7 +19,6 @@ Usage::
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from pydantic_ai import Agent
@@ -27,6 +26,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from mnemo.core.interfaces.param_spec import Param
+from mnemo.core.param_config import resolve_api_key
 
 # ---------------------------------------------------------------------------
 # Config schema for each [agent.<name>] section
@@ -42,8 +42,8 @@ AGENT_CONFIG_SCHEMA: dict[str, Param] = {
         desc="API base URL",
     ),
     "api_key": Param(
-        type="str", env_var="LLM_API_KEY",
-        desc="API key (reads from LLM_API_KEY env var)",
+        type="str", default="LLM_API_KEY", env_var="LLM_API_KEY",
+        desc="API key — env var name or literal key (e.g. LLM_API_KEY or sk-xxx)",
     ),
     "temperature": Param(
         type="float", default=0.3,
@@ -173,8 +173,11 @@ class AgentManager:
         cfg = dict(self._configs.get(name, self._configs.get(self._default_name, {})))
         if config_overrides:
             cfg = {**cfg, **config_overrides}
+            # Resolve api_key from overrides if present
+            if "api_key" in config_overrides:
+                cfg["api_key"] = resolve_api_key(str(config_overrides["api_key"]))
 
-        api_key = cfg.get("api_key", "") or os.environ.get("OPENAI_API_KEY", "")
+        api_key = cfg.get("api_key", "")
         base_url = cfg.get("base_url", "") or None
 
         provider = OpenAIProvider(
@@ -211,9 +214,16 @@ class AgentManager:
         resolved: dict[str, Any] = {}
         for key, param in AGENT_CONFIG_SCHEMA.items():
             if key in raw and raw[key] != "":
-                resolved[key] = raw[key]
+                if key == "api_key":
+                    # api_key: TOML value is env var name (or literal), resolve it
+                    resolved[key] = resolve_api_key(raw[key])
+                else:
+                    resolved[key] = raw[key]
             elif param.env_var:
-                resolved[key] = os.environ.get(param.env_var, param.default)
+                if key == "api_key":
+                    resolved[key] = resolve_api_key("", param)
+                else:
+                    resolved[key] = param.default
             else:
                 resolved[key] = param.default
         return resolved

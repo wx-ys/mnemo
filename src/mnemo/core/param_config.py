@@ -33,6 +33,49 @@ from typing import Any
 from mnemo.core.interfaces.param_spec import Param
 from mnemo.core.plugin_base import PluginHub
 
+
+# ---------------------------------------------------------------------------
+# Unified API key resolution
+# ---------------------------------------------------------------------------
+
+
+def resolve_api_key(value: str, param: Param | None = None) -> str:
+    """Resolve an API key from a config value + environment variable.
+
+    Resolution:
+    1. *value* is non-empty → try ``os.environ[value]`` first (treat as
+       env var name), fall back to the literal *value*
+    2. *value* is empty + *param* has ``env_var`` → ``os.environ[param.env_var]``
+    3. Otherwise → ``""``
+
+    This means users can set any of these in their TOML:
+
+    .. code-block:: toml
+
+        api_key = "LLM_API_KEY"   # reads from $LLM_API_KEY
+        api_key = "sk-abc123"     # literal key (no env var named "sk-abc123")
+        # api_key not set         # falls back to param.env_var (e.g. "LLM_API_KEY")
+
+    Parameters
+    ----------
+    value : str
+        The config value (e.g. ``cfg.get("api_key", "")``).
+    param : Param or None
+        The parameter spec with optional ``env_var`` field.
+
+    Returns
+    -------
+    str
+        The resolved API key (may be empty string if not found).
+    """
+    key = value or ""
+    if key:
+        # Try as env var name first; fall back to literal value
+        return os.environ.get(key, key)
+    if param is not None and param.env_var:
+        return os.environ.get(param.env_var, "")
+    return ""
+
 # ---------------------------------------------------------------------------
 # Global config schema — single source of truth for [global] settings.
 # ---------------------------------------------------------------------------
@@ -618,8 +661,9 @@ class ParamConfig:
             if param.desc:
                 lines.append(f"# {param.desc}")
             if param.env_var:
+                # api_key: uncommented so user can edit the env var name
                 lines.append(
-                    f"# {param_name} = {_toml_value(param.default)}"
+                    f"{param_name} = {_toml_value(param.default)}"
                     f"  # reads from ${param.env_var}"
                 )
             else:
@@ -627,17 +671,7 @@ class ParamConfig:
         lines.append("")
 
         # Embedder — single section (one KB, one embedder)
-        _EMBEDDER_PARAMS: dict[str, Param] = {
-            "model": Param(type="str", default="text-embedding-v4",
-                           desc="Embedding model name"),
-            "base_url": Param(type="str",
-                              default="https://dashscope.aliyuncs.com/compatible-mode/v1",
-                              desc="API base URL"),
-            "api_key": Param(type="str", env_var="DASHSCOPE_API_KEY",
-                             desc="API key (reads from DASHSCOPE_API_KEY env var)"),
-            "batch_size": Param(type="int", default=10,
-                                desc="Batch size for embedding texts"),
-        }
+        from mnemo.core.embedder import EMBEDDER_CONFIG_SCHEMA
         lines.append(
             "# ── Embedder "
             + "─" * 59
@@ -648,13 +682,14 @@ class ParamConfig:
         )
         lines.append("")
         lines.append("[embedder]")
-        for param_name in sorted(_EMBEDDER_PARAMS.keys()):
-            param = _EMBEDDER_PARAMS[param_name]
+        for param_name in sorted(EMBEDDER_CONFIG_SCHEMA.keys()):
+            param = EMBEDDER_CONFIG_SCHEMA[param_name]
             if param.desc:
                 lines.append(f"# {param.desc}")
             if param.env_var:
+                # api_key: uncommented so user can edit the env var name
                 lines.append(
-                    f"# {param_name} = {_toml_value(param.default)}"
+                    f"{param_name} = {_toml_value(param.default)}"
                     f"  # reads from ${param.env_var}"
                 )
             else:
@@ -1005,3 +1040,77 @@ def _infer_type_name(value: Any) -> str:
     if isinstance(value, float):
         return "float"
     return "str"
+
+
+# ============================================================================
+# .env template generation — scans all config schemas for env_var declarations
+# ============================================================================
+
+
+def generate_env_template() -> str:
+    """Generate a ``.env`` template by scanning all config schemas.
+
+    Walks all known ``Param`` schemas in the codebase, collects those
+    with a non-None ``env_var`` field, deduplicates, and writes a
+    commented template.
+
+    Returns
+    -------
+    str
+        Complete ``.env`` file content.
+    """
+    from mnemo.core.agent_manager import AGENT_CONFIG_SCHEMA
+    from mnemo.core.embedder import EMBEDDER_CONFIG_SCHEMA
+    from mnemo.core.plugin_base import PluginHub
+
+    # Collect all schemas: interface-level, plugin-level, global, and special
+    all_schemas: list[tuple[str, dict[str, Param]]] = [
+        ("Global", GLOBAL_CONFIG_SCHEMA),
+        ("Agent (all [agent.xxx] sections)", AGENT_CONFIG_SCHEMA),
+        ("Embedder ([embedder])", EMBEDDER_CONFIG_SCHEMA),
+    ]
+
+    # Walk all registered plugin interfaces for config_schema
+    for iface_name, iface_type in PluginHub.iter_interfaces():
+        schema = getattr(iface_type, "config_schema", None)
+        if schema:
+            all_schemas.append((f"Interface: {iface_name}", schema))
+
+    # Walk all registered plugin implementations for config_schema
+    for iface_name, iface_type in PluginHub.iter_interfaces():
+        for impl_name, impl_cls in PluginHub.iter_impls(iface_type):
+            schema = getattr(impl_cls, "config_schema", None)
+            if schema:
+                all_schemas.append((f"Plugin: {impl_name}", schema))
+
+    # Collect unique env_var entries
+    seen: set[str] = set()
+    lines: list[str] = [
+        "# " + "=" * 77,
+        "# Mnemo Environment Variables",
+        "# " + "=" * 77,
+        "#",
+        "# Copy this file to .env and fill in your API keys.",
+        "# The key names match the default ``api_key`` values in config.toml.",
+        "#",
+        "# Example:",
+        "#   LLM_API_KEY=sk-your-key-here",
+        "#   EMBED_API_KEY=sk-your-key-here",
+        "#",
+        "# Generated by: mnemo init",
+        "#",
+        "",
+    ]
+
+    for _source_name, schema in all_schemas:
+        for param_name, param in schema.items():
+            env_var = param.env_var
+            if not env_var or env_var in seen:
+                continue
+            seen.add(env_var)
+            if param.desc:
+                lines.append(f"# {param.desc}")
+            lines.append(f"{env_var}=")
+            lines.append("")
+
+    return "\n".join(lines) + "\n"

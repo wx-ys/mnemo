@@ -201,7 +201,8 @@ class AgentRegistry:
         tools: list[Any],
     ) -> Agent[Any]:
         """Build a pydantic-ai Agent from config + tools."""
-        api_key = cfg.get("api_key", "") or os.environ.get("OPENAI_API_KEY", "")
+        from mnemo.core.param_config import resolve_api_key
+        api_key = resolve_api_key(cfg.get("api_key", ""))
         base_url = cfg.get("base_url", "") or None
 
         provider = OpenAIProvider(
